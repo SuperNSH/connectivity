@@ -1,0 +1,10 @@
+[package]
+name = "nsh-connectivity"
+version = "0.0.1"
+edition = "2024"
+license = "MIT"
+description = "Network status, change events, and real internet reachability."
+repository = "https://github.com/SuperNSH/connectivity"
+publish = false
+
+[dependencies]
