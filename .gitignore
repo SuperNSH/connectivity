@@ -1,3 +1,6 @@
 target/
 .DS_Store
 Cargo.lock
+.refs/
+node_modules/
+.zcode/workflow-drafts/

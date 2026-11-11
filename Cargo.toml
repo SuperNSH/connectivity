@@ -1,10 +1,14 @@
-[package]
-name = "nsh-connectivity"
+[workspace]
+resolver = "3"
+members = ["crates/nsh-connectivity"]
+
+[workspace.package]
 version = "0.0.1"
 edition = "2024"
 license = "MIT"
-description = "Network status, change events, and real internet reachability."
 repository = "https://github.com/SuperNSH/connectivity"
-publish = false
 
-[dependencies]
+[workspace.lints.rust]
+missing_docs = "warn"
+unreachable_pub = "deny"
+private_interfaces = "deny"

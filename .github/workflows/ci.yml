@@ -1,6 +1,7 @@
 name: CI
 
 # Every compile and test runs here, on GitHub's runners, never on a developer's machine.
+# .refs/ is gitignored, so CI never clones it; no check may depend on it.
 
 on:
   push:
@@ -20,7 +21,7 @@ env:
   CARGO_INCREMENTAL: 0
 
 jobs:
-  rust:
+  format:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -28,7 +29,62 @@ jobs:
       - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
         with:
           toolchain: stable
-          components: rustfmt, clippy
+          components: rustfmt
       - run: cargo fmt --all -- --check
+
+  rust:
+    name: rust (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      # Each host OS compiles its own bridge: apple on macOS, linux on Ubuntu, windows on Windows.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          components: clippy
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test --all-targets
+
+  cross-check:
+    name: cross-check (${{ matrix.target }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { os: macos-latest, target: aarch64-apple-ios }
+          - { os: ubuntu-latest, target: aarch64-linux-android }
+          - { os: ubuntu-latest, target: wasm32-unknown-unknown }
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dtolnay/rust-toolchain@683b588c487a69d01f6c6ddf40f036ff682cc2c8 # master
+        with:
+          toolchain: stable
+          components: clippy
+          targets: ${{ matrix.target }}
+      - name: Point cc at the NDK
+        if: matrix.target == 'aarch64-linux-android'
+        run: |
+          bin="$ANDROID_NDK_LATEST_HOME/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          echo "CC_aarch64_linux_android=$bin/aarch64-linux-android24-clang" >> "$GITHUB_ENV"
+          echo "AR_aarch64_linux_android=$bin/llvm-ar" >> "$GITHUB_ENV"
+          echo "CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER=$bin/aarch64-linux-android24-clang" >> "$GITHUB_ENV"
+      - run: cargo clippy -p nsh-connectivity --target ${{ matrix.target }} --all-targets -- -D warnings
+
+  typescript:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      - run: npm --prefix packages/nsh-connectivity install
+      - run: npm --prefix packages/nsh-connectivity run typecheck
+      - run: npm --prefix packages/nsh-connectivity test
