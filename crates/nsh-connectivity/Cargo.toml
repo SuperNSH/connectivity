@@ -15,7 +15,7 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
-nsh-core = "0.4.0"
+nsh-core = "0.5.0"
 thiserror = "2"
 tokio = { version = "1", default-features = false, features = ["sync", "time", "rt", "macros"] }
 

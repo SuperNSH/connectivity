@@ -8,11 +8,11 @@ None. The three questions this repo opened with are decided below; a new questio
 
 ## Decided
 
-### NSH is pinned to 0.4.0 from crates.io
+### NSH is pinned to 0.5.0 from crates.io
 
-The brief left the version open because native features may exist only on NSH's unreleased `main`. `nsh-biometrics` builds its released line on `nsh-core = "0.4.0"`, and this crate needs the same `#[native_module]` and `#[class]` machinery, so 0.4.0 is the pin: what biometrics shipped on is what this builds on.
+The brief left the version open because native features may exist only on NSH's unreleased `main`. `nsh-biometrics` built its released line on `nsh-core = "0.4.0"`, and this crate needs the same `#[native_module]` and `#[class]` machinery, so the crate started on 0.4.0, what biometrics shipped on, and moved to 0.5.0 with the SuperNSH set on 2026-11-11.
 
-One consequence carries over from the biometrics work: NSH 0.4.0 writes the Android manifest itself and declares only `INTERNET` (plus `POST_NOTIFICATIONS` for the notifications capability), so this crate cannot get `ACCESS_FINE_LOCATION` into an app. Reading the SSID on Android 12+ needs that permission, so the SSID reads `None` there — not an error — until NSH can declare it. The connectivity queries themselves need no permission.
+One consequence carries over from the biometrics work: NSH writes the Android manifest itself. 0.5.0 declares only `INTERNET`, plus `POST_NOTIFICATIONS` for the notifications capability and `RECORD_AUDIO`/`CAMERA` for web-view media (`crates/nsh-cli/src/android.rs` at v0.5.0), so this crate cannot get `ACCESS_FINE_LOCATION` into an app. Reading the SSID on Android 12+ needs that permission, so the SSID reads `None` there — not an error — until NSH can declare it. The connectivity queries themselves need no permission.
 
 ### The platform libraries
 
