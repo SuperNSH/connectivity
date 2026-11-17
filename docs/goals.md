@@ -11,7 +11,7 @@ Reachability is probed, not inferred: a GET against a 204 endpoint on top of the
 
 Deltas fixed by this contract: connectivity_plus's `mobile` is `cellular` here; netinfo's `boolean | null` reachability becomes the tri-state `unknown | reachable | unreachable`; platform events are debounced (neither reference debounces); the probe is GET-only in v1, so netinfo's `reachabilityMethod` and `reachabilityTest` knobs are not carried over. The full per-API mapping of both references is parity.md.
 
-Platforms in scope: Apple, macOS and iOS (NWPathMonitor via objc2-network); Android (ConnectivityManager over JNI with ndk-context); Windows (Windows.Networking.Connectivity via the windows crate); Linux (netdev for inspection, if-watch for events); web (navigator.onLine plus the fetch probe). Every other target compiles the unsupported backend and answers `ERR_CONNECTIVITY_NOT_AVAILABLE`. CI compiles all five bridges — the host matrix plus cross-checks — and per AGENTS.md nothing in this file is verified until a CI run on `master` passes it. Status lives in parity.md, not here.
+Platforms in scope: Apple, macOS and iOS (NWPathMonitor via Network.framework's C API, bound by hand); Android (ConnectivityManager over JNI with ndk-context); Windows (Windows.Networking.Connectivity via the windows crate); Linux (netdev for inspection, if-watch for events); web (navigator.onLine plus the fetch probe). Every other target compiles the unsupported backend and answers `ERR_CONNECTIVITY_NOT_AVAILABLE`. CI compiles all five bridges — the host matrix plus cross-checks — and per AGENTS.md nothing in this file is verified until a CI run on `master` passes it. Status lives in parity.md, not here.
 
 ## Acceptance criteria
 

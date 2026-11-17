@@ -15,7 +15,7 @@ path = "src/lib.rs"
 workspace = true
 
 [dependencies]
-nsh-core = "0.5.0"
+nsh-core = "0.5.1"
 thiserror = "2"
 tokio = { version = "1", default-features = false, features = ["sync", "time", "rt", "macros"] }
 
@@ -23,9 +23,11 @@ tokio = { version = "1", default-features = false, features = ["sync", "time", "
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 ureq = { version = "3", default-features = false, features = ["rustls"] }
 
-# Apple: NWPathMonitor from Network.framework.
+# Apple: NWPathMonitor through Network.framework's C API (nw_path_monitor_*), bound by hand:
+# objc2-network is a reserved 0.0.0 placeholder. The monitor needs a dispatch queue and a block.
 [target.'cfg(target_vendor = "apple")'.dependencies]
-objc2-network = "0.3"
+block2 = "0.6.2"
+dispatch2 = "0.3.1"
 
 # Android: ConnectivityManager over JNI. ndk-context carries the VM and the application context.
 [target.'cfg(target_os = "android")'.dependencies]
@@ -45,8 +47,12 @@ if-watch = { version = "3.2", default-features = false, features = ["tokio"] }
 [target.'cfg(target_arch = "wasm32")'.dependencies]
 web-sys = { version = "0.3", features = ["Window", "Navigator", "Worker", "WorkerNavigator", "Request", "RequestInit", "AbortSignal", "Response", "Headers"] }
 wasm-bindgen = "0.2"
-wasm-bindgen-futures = "0.2"
+wasm-bindgen-futures = "0.4"
 js-sys = "0.3"
 
 [dev-dependencies]
-tokio = { version = "1", default-features = false, features = ["sync", "time", "rt", "rt-multi-thread", "macros", "test-util"] }
+tokio = { version = "1", default-features = false, features = ["sync", "time", "rt", "macros", "test-util"] }
+
+# tokio refuses to compile rt-multi-thread for wasm32, so the multi-thread runtime is native-only.
+[target.'cfg(not(target_arch = "wasm32"))'.dev-dependencies]
+tokio = { version = "1", default-features = false, features = ["rt-multi-thread"] }
