@@ -1,0 +1,8 @@
+{
+  "name": "nsh-connectivity tests",
+  "id": "dev.supernsh.connectivity.tests",
+  "version": "0.0.1",
+  "build": 1,
+  "rust": "../../crates/nsh-connectivity",
+  "capabilities": {}
+}

@@ -8,9 +8,17 @@ The API follows Flutter's `connectivity_plus` and React Native's `NetInfo`, so a
 
 ## Status
 
-**Implemented and gated. Not run on devices.** The crate `crates/nsh-connectivity` carries the core API — check, fetch, refresh, subscribe, the debounce loop, the HTTP 204 probe — with five platform backends: Apple (NWPathMonitor), Android (ConnectivityManager over JNI), Windows (NetworkInformation), Linux (netdev and if-watch), web (navigator.onLine plus the probe), and an unsupported-target backend. The package `packages/nsh-connectivity` carries the same API in camelCase, with a `useNetInfo` hook and a memory backend for tests.
+**Implemented, gated locally, not run on devices.** The crate `crates/nsh-connectivity` carries the core API — check, fetch, refresh, state, configure, subscribe, the change stream, stop, the debounce loop, the HTTP 204 probe — with backends for Apple (NWPathMonitor), Android (ConnectivityManager over JNI), Windows (NetworkInformation), Linux (netdev and if-watch), the web (navigator.onLine plus fetch), and an unsupported-target fallback. The package `packages/nsh-connectivity` carries the same API in camelCase over a thin native seam, with `useNetInfo` and a memory backend, scripted probe and manual clock for tests.
 
-How that is verified: the gates ran locally for this change — `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all-targets`, then `npm run typecheck` and `npm test` in `packages/nsh-connectivity` — and [.github/workflows/ci.yml](.github/workflows/ci.yml) runs the same gates on every push, with cross-checks that compile each platform bridge for `aarch64-apple-ios`, `aarch64-linux-android` and `wasm32-unknown-unknown`. A local run proves the code compiles and the offline test suite passes on the machine that ran it: the tests drive fake and memory backends and script the probe's HTTP answers. No device ran this code and no probe hit the live Internet. Per AGENTS.md, a claim with no passing run is unverified; the CI run on `master` is the run that stands behind this section.
+What ran on 2026-11-17, before any CI run of this change:
+
+- macOS host: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all-targets` (14 unit tests, including a live NWPathMonitor snapshot and watch, and the 28 tests in `tests/edge_cases.rs`).
+- Cross clippy with `-D warnings` from macOS: `aarch64-apple-ios`, `aarch64-apple-ios-sim`, `aarch64-linux-android` (NDK 28.2), `wasm32-unknown-unknown`.
+- Ubuntu 24.04 (a cloud box, with the same sources): `cargo clippy --all-targets -- -D warnings` and `cargo test --all-targets` (22 unit tests including the Linux backend's live netlink tests, plus the 28 edge cases); `cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings` (Windows compiled and linted only, never run).
+- `packages/nsh-connectivity` with NSH 0.5.1: `nsh check`, `nsh build` (no warning), `nsh test` (32 tests, including one that opens the app on the real Apple backend).
+- Every new test was seen to fail by breaking the code on purpose, then passed again once it was restored.
+
+Not verified: no device or simulator ran this code, the Windows and Android backends never executed, the web backend never ran in a browser, and no probe hit the live Internet. Not implemented: change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`), the SSID on Apple, Linux and Android, satellite on Apple, and the detail fields no backend reads (`bssid`, `strength`, frequency, link speed, cellular generation, carrier). On Android, NSH 0.5.1 does not declare `ACCESS_NETWORK_STATE`, so snapshots there answer `ERR_CONNECTIVITY_PERMISSION_DENIED` until it does. [docs/decisions.md](docs/decisions.md) has the reasons.
 
 ## Approach
 
@@ -29,7 +37,7 @@ Interface events per platform (the libraries named in Status), debounced, then o
 
 ## Checks
 
-CI runs every gate on push and on pull requests: format, Clippy with `-D warnings`, the Rust tests, the TypeScript typecheck and tests, and the cross-target Clippy builds. Nothing is built on a developer's machine; the one local gate run for this change is recorded in Status.
+CI runs every gate on push and on pull requests: format, Clippy with `-D warnings`, the Rust tests, the TypeScript typecheck and tests, and the cross-target Clippy builds. The local gate runs for this change are recorded in Status; the CI run on `master` is the one that counts.
 
 ## Licence
 

@@ -8,7 +8,7 @@ Status words:
 - **Omitted**: no counterpart, with the reason. An omitted configuration field is not in `Configuration`; a plain-JS caller that passes one changes nothing.
 - **Ours**: no reference API; the row names what this library adds.
 
-What is implemented and which gates ran is in the README's Status section. The testable contract, with a named test for each edge case, is [goals.md](goals.md).
+What is implemented and which gates ran is in the README's Status section. A "Mapped" row means the API exists; which fields each platform actually fills is in [decisions.md](decisions.md) ("What each backend can and cannot answer"): `bssid`, `strength`, `frequency`, `linkSpeed`, `cellularGeneration` and `carrier` are `None`/`null` on every backend today, and Android has no change events. The testable contract, with a named test for each edge case, is [goals.md](goals.md).
 
 ## `Connectivity` (connectivity_plus)
 
@@ -16,7 +16,7 @@ What is implemented and which gates ran is in the README's Status section. The t
 |---|---|---|---|
 | `Connectivity()` (singleton factory) | `Connectivity::new()` | `new Connectivity()` | Mapped. The handle over the platform backend; `Connectivity::with_backend(backend)` builds one over a fake for tests. connectivity_plus forces a singleton because a second instance overrides its EventChannel; nothing here needs that guard |
 | `checkConnectivity()` | `Connectivity::check_connectivity()` | `checkConnectivity()` | Mapped. The live types, strongest first; the list is never empty and is exactly `[none]` when nothing is live |
-| `onConnectivityChanged` (stream, distinct, never empty) | `Connectivity::on_connectivity_changed()` -> `ConnectivityStream` | `onConnectivityChanged(listener)`, returns an unsubscribe function | Mapped. Yields distinct, never-empty lists, as connectivity_plus does; ours debounces platform events (`debounce`, default 500 ms) before a change can reach the stream |
+| `onConnectivityChanged` (stream, distinct, never empty) | `Connectivity::on_connectivity_changed().await` -> `Result<ConnectivityStream, _>` | `onConnectivityChanged(listener)`, returns an unsubscribe function | Mapped. Yields distinct, never-empty lists, as connectivity_plus does; ours debounces platform events (`debounce`, default 500 ms) before a change can reach the stream |
 | `ConnectivityPlatform` (the platform-interface override point) | the `Backend` trait, plus `Connectivity::with_backend` | the `ConnectivityBackend` interface, plus `memoryBackend` | Mapped |
 | `hasConnectivity` (extension on `List<ConnectivityResult>`) | not carried | not carried | Omitted. On a never-empty list where `none` appears only alone, `list != [none]` is the whole check |
 
@@ -44,13 +44,13 @@ One set here, `ConnectionType`: the union of both references' values. The TS val
 | `configure(configuration)` | `Connectivity::configure(Configuration)` | `configure(Configuration)` | Mapped, with one difference: netinfo's configure tears the state manager down, so previously added listeners stop firing; ours keeps subscriptions and the next read uses the new configuration |
 | `fetch(requestedInterface?)` | `Connectivity::fetch(interface: Option<&str>)` | `fetch(interfaceName?)` | Mapped. A name the platform does not know rejects with `ERR_CONNECTIVITY_UNKNOWN_INTERFACE` |
 | `refresh()` | `Connectivity::refresh()` | `refresh()` | Mapped, including the coalescing: concurrent callers share one in-flight probe |
-| `addEventListener(listener)` -> unsubscribe | `Connectivity::subscribe()` -> `watch::Receiver` | `addEventListener(listener)` -> unsubscribe | Mapped. The first delivery is the current state, then changes |
-| `useNetInfo(configuration?)` | — | `useNetInfo(config?)` | Mapped in TS only; a hook is a React thing. The Rust counterpart is `subscribe()` |
+| `addEventListener(listener)` -> unsubscribe | `Connectivity::subscribe().await` -> `Result<watch::Receiver, _>` | `addEventListener(listener)` -> unsubscribe | Mapped. The first delivery is the current state, then changes |
+| `useNetInfo(configuration?)` | — | `useNetInfo(config?, connectivity?)` | Mapped in TS only, as an NSH `Accessor<NetworkState>`: NSH components are signal-based, so the hook returns an accessor rather than a value. The Rust counterpart is `subscribe()` |
 | `useNetInfoInstance(isPaused?, configuration?)` | — | — | Omitted. It exists to run an isolated manager and pause it; v1 has one manager and the hook reads it, and no caller needs a paused isolated checker |
 | the default export object (`NetInfo.configure`, ...) | — | named exports only | Omitted. NSH packages export names, not a default object, as `nsh-biometrics` does |
 | `NetInfoChangeHandler`, `NetInfoSubscription` | — | the callback and unsubscribe types of `addEventListener` | Mapped structurally; no separate aliases |
 
-Rust adds `state()` (the current state without forcing a probe) and `stop()` (cancels the watch and the event loop; idempotent). TS adds `useNetInfo()` and `rustBackend()`; the native bridge carries `stop()` for the Rust side of the seam.
+Rust adds `state()` (the current state without forcing a probe) and `stop()` (cancels the watch and the event loop; idempotent). TS has the same `state()` and `stop()`, plus `useNetInfo()` and `rustBackend()`; the native bridge (`NativeConnectivity`) carries only the platform seam: `snapshot`, `watch`, `nextEvent`, `stopWatching`.
 
 ## `NetInfoState` and its details
 

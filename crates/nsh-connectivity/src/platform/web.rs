@@ -34,7 +34,7 @@ struct WatchState {
 // threaded wasm, so the state lives in a thread-local instead of the backend struct; the
 // single-threaded JS event loop keeps every access race-free.
 thread_local! {
-    static WATCH: RefCell<Option<WatchState>> = RefCell::new(None);
+    static WATCH: RefCell<Option<WatchState>> = const { RefCell::new(None) };
 }
 
 /// The platform has no connectivity API here.
@@ -157,7 +157,13 @@ impl Backend for NativeBackend {
             return Err(backend());
         }
 
-        WATCH.with(|watch| *watch.borrow_mut() = Some(WatchState { target, online, offline }));
+        WATCH.with(|watch| {
+            *watch.borrow_mut() = Some(WatchState {
+                target,
+                online,
+                offline,
+            })
+        });
         Ok(())
     }
 
@@ -168,7 +174,7 @@ impl Backend for NativeBackend {
 
 #[cfg(test)]
 mod tests {
-    use super::{backend, not_available, snapshot_for, NativeBackend, Online};
+    use super::{NativeBackend, Online, backend, not_available, snapshot_for};
     use crate::error::ErrorKind;
     use crate::types::ConnectionType;
 

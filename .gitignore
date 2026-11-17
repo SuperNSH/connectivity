@@ -4,3 +4,5 @@ Cargo.lock
 .refs/
 node_modules/
 .zcode/workflow-drafts/
+.nsh/
+build.log

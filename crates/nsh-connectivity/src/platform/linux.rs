@@ -9,8 +9,8 @@ use std::sync::{LazyLock, Mutex, PoisonError};
 use std::time::Duration;
 
 use if_watch::tokio::IfWatcher;
-use netdev::interface::types::InterfaceType;
 use netdev::Interface;
+use netdev::interface::types::InterfaceType;
 use tokio::sync::mpsc::UnboundedSender;
 use tokio::sync::watch;
 
@@ -117,10 +117,10 @@ fn snapshot_from_interfaces(mut interfaces: Vec<Interface>) -> PlatformSnapshot 
 
     let mut types: Vec<ConnectionType> = Vec::new();
     for iface in &interfaces {
-        if let Some(connection) = connection_type(iface) {
-            if !types.contains(&connection) {
-                types.push(connection);
-            }
+        if let Some(connection) = connection_type(iface)
+            && !types.contains(&connection)
+        {
+            types.push(connection);
         }
     }
 
@@ -152,7 +152,7 @@ impl Backend for NativeBackend {
                 // No runtime to block: the reads are local and resolve here.
                 return Ok(enumerate());
             };
-            let join = handle.spawn_blocking(enumerate).map_err(io_error)?;
+            let join = handle.spawn_blocking(enumerate);
             match tokio::time::timeout(SNAPSHOT_DEADLINE, join).await {
                 Ok(Ok(snapshot)) => Ok(snapshot),
                 // The task panicked or was cancelled; a timed-out enumeration also finishes on
@@ -212,12 +212,14 @@ impl Backend for NativeBackend {
 
 #[cfg(test)]
 mod tests {
-    use super::{connection_type, interface_info, io_error, snapshot_from_interfaces, NativeBackend};
+    use super::{
+        NativeBackend, connection_type, interface_info, io_error, snapshot_from_interfaces,
+    };
     use crate::backend::Backend;
     use crate::error::ErrorKind;
     use crate::types::ConnectionType;
-    use netdev::interface::types::InterfaceType;
     use netdev::Interface;
+    use netdev::interface::types::InterfaceType;
     use std::net::{Ipv4Addr, Ipv6Addr};
 
     // Linux if(3) flag bits: UP 0x1, LOOPBACK 0x8, POINTOPOINT 0x10, RUNNING 0x40.
@@ -348,8 +350,10 @@ mod tests {
     #[test]
     fn interface_info_prefers_ipv4_with_dotted_mask() {
         let mut iface = interface("wlan0", InterfaceType::Wireless80211, UP_RUNNING);
-        iface.ipv4 = vec![netdev::ipnet::Ipv4Net::new(Ipv4Addr::new(192, 168, 1, 10), 24)
-            .expect("valid test network")];
+        iface.ipv4 = vec![
+            netdev::ipnet::Ipv4Net::new(Ipv4Addr::new(192, 168, 1, 10), 24)
+                .expect("valid test network"),
+        ];
         let info = interface_info(&iface);
         assert_eq!(info.ip_address.as_deref(), Some("192.168.1.10"));
         assert_eq!(info.subnet.as_deref(), Some("255.255.255.0"));
@@ -359,11 +363,15 @@ mod tests {
     #[test]
     fn interface_info_reports_ipv6_address_without_mask() {
         let mut iface = interface("eth0", InterfaceType::Ethernet, UP_RUNNING);
-        iface.ipv6 = vec![netdev::ipnet::Ipv6Net::new(
-            "2001:db8::1".parse::<Ipv6Addr>().expect("valid test address"),
-            64,
-        )
-        .expect("valid test network")];
+        iface.ipv6 = vec![
+            netdev::ipnet::Ipv6Net::new(
+                "2001:db8::1"
+                    .parse::<Ipv6Addr>()
+                    .expect("valid test address"),
+                64,
+            )
+            .expect("valid test network"),
+        ];
         let info = interface_info(&iface);
         assert_eq!(info.ip_address.as_deref(), Some("2001:db8::1"));
         assert_eq!(info.subnet, None);
@@ -383,12 +391,10 @@ mod tests {
 
     #[tokio::test]
     async fn snapshot_resolves_once_within_its_deadline() {
-        let state = tokio::time::timeout(
-            std::time::Duration::from_secs(10),
-            NativeBackend.snapshot(),
-        )
-        .await
-        .expect("snapshot resolves exactly once");
+        let state =
+            tokio::time::timeout(std::time::Duration::from_secs(10), NativeBackend.snapshot())
+                .await
+                .expect("snapshot resolves exactly once");
         assert!(state.is_ok());
     }
 

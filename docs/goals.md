@@ -20,9 +20,9 @@ Done is what the gates say, nothing else:
 1. `cargo fmt --all -- --check` — clean.
 2. `cargo clippy --all-targets -- -D warnings` — clean on the host.
 3. `cargo test --all-targets` — passes, including every Rust test named in [Edge cases](#edge-cases).
-4. `npm --prefix packages/nsh-connectivity run typecheck` — passes.
-5. `npm --prefix packages/nsh-connectivity test` — passes, including every TS test named in [Edge cases](#edge-cases).
-6. `.github/workflows/ci.yml` runs both toolchains on push: the format job; clippy and tests on ubuntu, macos, and windows (each host compiles its own bridge); cross-check clippy for `aarch64-apple-ios`, `aarch64-linux-android`, and `wasm32-unknown-unknown`; the TypeScript job.
+4. In `packages/nsh-connectivity`: `nsh check` passes and `nsh build` passes with no warning.
+5. In `packages/nsh-connectivity`: `nsh test` passes, including every TS test named in [Edge cases](#edge-cases).
+6. `.github/workflows/ci.yml` runs both toolchains on push: the format job; clippy and tests on ubuntu, macos, and windows (each host compiles its own bridge); cross-check clippy for `aarch64-apple-ios`, `aarch64-linux-android`, and `wasm32-unknown-unknown`; the TypeScript job (NSH 0.5.1's `nsh check`, `nsh build`, `nsh test`).
 
 Every edge case below names its test in both languages, and the suites use those exact names. A case that turns out to be inexpressible in one language's integration suite is recorded here with the reason before the suite lands; there is currently no such case.
 
@@ -83,7 +83,7 @@ struct Configuration {
 }
 ```
 
-TS mirrors with `null` for `Option` and ms-valued numbers: `reachabilityUrl`, `reachabilityTimeoutMs` (10000), `debounceMs` (500), `probeOnEvents` (true).
+TS mirrors with `null` for `Option` (and `type` for `r#type`) and ms-valued numbers: `reachabilityUrl`, `reachabilityTimeoutMs` (10000), `debounceMs` (500), `probeOnEvents` (true).
 
 - `ConnectionType` "none" (no radio) is distinct from `Reachability` "unknown" (no probe answer yet).
 - Ordering: strongest type first; a VPN is appended after the underlying type, so a VPN over Wi-Fi reports `[wifi, vpn]`.
@@ -107,13 +107,14 @@ All methods resolve exactly once: success, a coded error, or a cancel. Never a h
 |---|---|
 | `Connectivity::new() -> Connectivity` | uses the platform backend |
 | `Connectivity::with_backend(backend) -> Connectivity` | for tests and fakes |
+| `with_probe(self, probe) -> Connectivity` | the same backend with another `Probe` (tests pass `FakeProbe`) |
 | `check_connectivity() -> Result<Vec<ConnectionType>, ConnectivityError>` | connectivity_plus parity: the list is never empty; exactly `[None]` when nothing is live |
 | `fetch(interface: Option<&str>) -> Result<NetworkState, ConnectivityError>` | netinfo parity; a name the platform does not know is `UnknownInterface` |
 | `refresh() -> Result<NetworkState, ConnectivityError>` | forces a fresh probe; concurrent callers share one in-flight probe |
 | `state() -> Result<NetworkState, ConnectivityError>` | the current state without forcing a probe |
 | `configure(config: Configuration)` | the next read uses the new configuration |
-| `subscribe() -> Result<watch::Receiver<NetworkState>, ConnectivityError>` | the debounced state, starting with the current one |
-| `on_connectivity_changed() -> ConnectivityStream` | yields distinct, never-empty `Vec<ConnectionType>` lists |
+| `async subscribe() -> Result<watch::Receiver<NetworkState>, ConnectivityError>` | the debounced state, starting with the current one |
+| `async on_connectivity_changed() -> Result<ConnectivityStream, ConnectivityError>` | `next().await` yields distinct, never-empty `Vec<ConnectionType>` lists, the current one first |
 | `stop()` | cancels the watch and the event loop; idempotent; resolves exactly once |
 
 Event pipeline:
@@ -125,7 +126,9 @@ Event pipeline:
 The platform seam (`backend.rs`):
 
 ```rust
-pub type BackendFuture<'a, T> = Pin<Box<dyn Future<Output = T> + 'a>>;
+// Native targets run the event loop on tokio's threads, so the future is `Send` there;
+// wasm32 drops the bound.
+pub type BackendFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
 
 #[derive(Debug, Clone, Copy)]
 pub struct PlatformEvent; // a nudge to re-read a snapshot
@@ -137,9 +140,9 @@ pub trait Backend: Send + Sync {
 }
 ```
 
-`snapshot` resolves or errors, never hangs. `stop_watching` is idempotent; after it returns no more events are pushed. Backends: apple (macOS, iOS), android, windows, linux, web (wasm32), and unsupported for everything else, which answers `NotAvailable`.
+`subscribe` and `on_connectivity_changed` start the event loop on the current tokio runtime (NSH polls its tasks inside one) or, on wasm32, the page's event loop; with no runtime they answer `NotAvailable`. `snapshot` resolves or errors, never hangs. `stop_watching` is idempotent; after it returns no more events are pushed. Backends: apple (macOS, iOS), android, windows, linux, web (wasm32), and unsupported for everything else, which answers `NotAvailable`.
 
-The test fake (`fake.rs`): `FakeBackend::new()` is a device on Wi-Fi, connected; `set_snapshot(Result<PlatformSnapshot, ConnectivityError>)`, `set_watch_error(Option<ConnectivityError>)` fails the next `watch`, `emit_event() -> bool` (true when a watcher existed), `watchers() -> usize`, `stopped() -> usize`, `snapshots() -> usize`. Clones share one state.
+The test fake (`fake.rs`): `FakeBackend::new()` is a device on Wi-Fi, connected; `set_snapshot(Result<PlatformSnapshot, ConnectivityError>)`, `set_watch_error(Option<ConnectivityError>)` fails the next `watch`, `emit_event() -> bool` (true when a watcher existed), `watchers() -> usize`, `stopped() -> usize`, `snapshots() -> usize`. Clones share one state. `FakeProbe::answering(outcome)` / `FakeProbe::stalled()` script the probe, with `set_outcome`, `probes()` and `urls()`.
 
 ### TypeScript package
 
@@ -151,25 +154,26 @@ Exports from `src/index.ts`:
 | `fetch(interfaceName?: string): Promise<NetworkState>` | unknown name rejects `ERR_CONNECTIVITY_UNKNOWN_INTERFACE`; empty string rejects `ERR_CONNECTIVITY_INVALID_ARGUMENT` |
 | `refresh(): Promise<NetworkState>` | forces a fresh probe; concurrent calls share one in-flight probe |
 | `addEventListener(listener) -> unsubscribe` | debounced states; the first delivery is the current state |
-| `useNetInfo(config?) -> NetworkState` | the same stream as a React hook; unsubscribes on unmount, never loops |
-| `class Connectivity` | `checkConnectivity(): Promise<ConnectionType[]>` (never empty, `["none"]` alone when nothing is live) and `onConnectivityChanged(listener) -> unsubscribe` (distinct, never-empty lists) |
+| `useNetInfo(config?, connectivity?) -> Accessor<NetworkState>` | the same stream as an NSH accessor (NSH components are signal-based, not React), `UNKNOWN_STATE` until the first delivery; unsubscribes when its component goes |
+| `class Connectivity` | `new Connectivity({ backend?, probe?, timers?, configuration? })`; `checkConnectivity(): Promise<ConnectionType[]>` (never empty, `["none"]` alone when nothing is live), `onConnectivityChanged(listener) -> unsubscribe` (distinct, never-empty lists), and the same `fetch`, `refresh`, `state`, `configure`, `addEventListener`, `stop` as the module functions, which use one default instance over `rustBackend()` |
 
 `ConnectivityError`, `asConnectivityError`, and every type above are re-exported from the package root. Configuration carries data only; function-valued netinfo knobs (`reachabilityTest`, `reachabilityShouldRun`) do not cross the Rust seam — parity.md records the full mapping.
 
 Test and platform seams:
 
 - `interface ConnectivityBackend { snapshot(): Promise<PlatformSnapshot>; watch(sink: (event: PlatformEvent) => void): Promise<void>; stopWatching(): void }` — a `watch` rejection is the watch error.
-- `memoryBackend()` mirrors `FakeBackend` (`setSnapshot`, `emitEvent`, `watchers`, `stopped`, `snapshots`) and drives the TS suite.
-- `rustBackend()` wraps `new NativeConnectivity()` from `nsh-connectivity/native`, mapping rejections through `asConnectivityError`. The native module's members are camelCase: `checkConnectivity`, `fetch`, `refresh`, `configure`, `subscribe`, `stop`; rejections carry the stable code.
+- `memoryBackend()` mirrors `FakeBackend` (`setSnapshot`, `setWatchError`, `emitEvent`, `watchers`, `stopped`, `snapshots`); `scriptedProbe(outcome | null)` mirrors `FakeProbe`; `manualClock()` is the `Timers` the suite moves by hand (`advance`, `settle`). Together they drive the TS suite.
+- `httpProbe(fetchImpl?)` is the default probe over the global `fetch`; tests pass a scripted fetch.
+- `rustBackend()` wraps `new NativeConnectivity()` from `nsh-connectivity/native`, mapping rejections through `asConnectivityError`. The native class carries the platform seam only — `snapshot()`, `watch()`, `nextEvent()` (resolves `true` per platform event, `false` once stopped) and `stopWatching()` — and the TS package runs the debounce and the probe itself; rejections carry the stable code.
 
 ### Layout
 
 ```
-crates/nsh-connectivity/src/    error.rs types.rs backend.rs fake.rs probe.rs lib.rs native.rs
+crates/nsh-connectivity/src/    error.rs types.rs backend.rs fake.rs probe.rs rt.rs lib.rs native.rs
                                 platform/{mod,apple,android,windows,linux,web,unsupported}.rs
-crates/nsh-connectivity/tests/  one named Rust test per edge case
-packages/nsh-connectivity/src/  errors.ts types.ts backend.ts memory.ts probe.ts state.ts index.ts rust.ts native.d.ts
-packages/nsh-connectivity/tests/ one named TS test per edge case
+crates/nsh-connectivity/tests/  edge_cases.rs: one named Rust test per edge case
+packages/nsh-connectivity/src/  errors.ts types.ts backend.ts memory.ts probe.ts state.ts netinfo.ts index.ts rust.ts
+packages/nsh-connectivity/tests/ connectivity.test.ts (one named TS test per edge case), errors.test.ts, app.test.tsx
 ```
 
 ## Errors
@@ -194,7 +198,7 @@ Every row maps to at least one test below: NotAvailable to 16, PermissionDenied 
 
 ## Edge cases
 
-Both languages drive the public API through the fakes: `FakeBackend` in Rust, `memoryBackend` in TS. Reachability is scripted, never live — a local in-process HTTP server in Rust, a mocked global `fetch` in TS — so no test depends on the real Internet. Test names are exact and stable; each row is one test per language, in `crates/nsh-connectivity/tests/` and `packages/nsh-connectivity/tests/`.
+Both languages drive the public API through the fakes: `FakeBackend` in Rust, `memoryBackend` in TS. Reachability is scripted, never live — `FakeProbe` or a loopback HTTP server in Rust, a scripted probe or `httpProbe` over a scripted fetch in TS — so no test depends on the real Internet. Timing runs on a manual clock: tokio's paused clock in Rust, `manualClock()` in TS. Test names are exact and stable; each row is one test per language, in `crates/nsh-connectivity/tests/` and `packages/nsh-connectivity/tests/`.
 
 | # | Case | Must hold | Rust test | TS test |
 |---|---|---|---|---|

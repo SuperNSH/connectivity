@@ -12,7 +12,7 @@ None. The three questions this repo opened with are decided below; a new questio
 
 The brief left the version open because native features may exist only on NSH's unreleased `main`. `nsh-biometrics` built its released line on `nsh-core = "0.4.0"`, and this crate needs the same `#[native_module]` and `#[class]` machinery, so the crate started on 0.4.0, what biometrics shipped on, and moved to 0.5.0 with the SuperNSH set on 2026-11-11, then to the 0.5.1 bug-fix release (no API changes) on 2026-11-16.
 
-One consequence carries over from the biometrics work: NSH writes the Android manifest itself. 0.5.0 declares only `INTERNET`, plus `POST_NOTIFICATIONS` for the notifications capability and `RECORD_AUDIO`/`CAMERA` for web-view media (`crates/nsh-cli/src/android.rs` at v0.5.0), so this crate cannot get `ACCESS_FINE_LOCATION` into an app. Reading the SSID on Android 12+ needs that permission, so the SSID reads `None` there — not an error — until NSH can declare it. The connectivity queries themselves need no permission.
+One consequence carries over from the biometrics work: NSH writes the Android manifest itself. 0.5.0 declares only `INTERNET`, plus `POST_NOTIFICATIONS` for the notifications capability and `RECORD_AUDIO`/`CAMERA` for web-view media (`crates/nsh-cli/src/android.rs` at v0.5.0), so this crate cannot get `ACCESS_FINE_LOCATION` into an app. Reading the SSID on Android 12+ needs that permission, so the SSID reads `None` there — not an error — until NSH can declare it. The connectivity queries themselves need `ACCESS_NETWORK_STATE`, which 0.5.x does not declare either (`crates/nsh-cli/src/android.rs`, checked against the v0.5.0 source on 2026-11-17): Android then throws `SecurityException`, which the backend reports as `ERR_CONNECTIVITY_PERMISSION_DENIED`. An earlier version of this entry said the queries need no permission; that was wrong.
 
 ### The platform libraries
 
@@ -41,3 +41,20 @@ All six research URLs resolved to their canonical repositories and are cloned un
 - https://github.com/SuperNSH/biometrics
 
 [parity.md](parity.md) reads the sources in these clones, not the READMEs.
+
+### The core runs on tokio on native targets, on the page on the web
+
+The debounce loop is spawned on the current tokio runtime: NSH polls its tasks inside one (`nsh-core` 0.5.1, `element/task.rs`), and tests run on tokio's paused clock. So `BackendFuture` is `Send` on native targets, a narrowing of the seam the first draft of goals.md gave. Timers are tokio's (a thread times them when no runtime is current), so an NSH test's manual clock does not move the Rust core's debounce; the TS core takes its timers as a parameter instead. On wasm32 the loop runs with `wasm_bindgen_futures::spawn_local` and `setTimeout`. `subscribe` and `on_connectivity_changed` are `async` and return a `Result`, because they read the current state first and starting the loop can fail with no runtime (`NotAvailable`).
+
+### The TS package runs its own core over a thin native seam
+
+`NativeConnectivity` exposes the platform seam (`snapshot`, `watch`, `nextEvent`, `stopWatching`), not the whole Rust API. The TS `Connectivity` debounces and probes in TS, with the engine's `fetch` as the probe, so it follows NSH's clocks and needs no tokio context from a JS call. `nextEvent` is a pull: a JS `Callback` is `Rc`-based and cannot be called from the platform's threads.
+
+### What each backend can and cannot answer
+
+- Apple: `NWPathMonitor`, twelve C functions declared by hand. A path carries no SSID or addresses, so those are `None`. A VPN is recognised by its tunnel's name (`utun*`, `ipsec*`, `ppp*`, `tun*`, `tap*`), because Network reports it as `other`. Satellite needs `nw_path_is_ultra_constrained` (macOS/iOS 26) and is not read.
+- Android: snapshot only. Change events need a `ConnectivityManager.NetworkCallback` subclass, which is Java code a crate cannot ship through NSH 0.5.1, so `watch` answers `NotAvailable`. No polling fallback was added.
+- Windows: connection profiles and `NetworkStatusChanged`. IP address and subnet are not read.
+- Linux: netdev and if-watch as planned; no SSID (that needs NetworkManager over D-Bus).
+- Web: `navigator.onLine` reports `wifi` when online; the probe needs a CORS-enabled URL, or the browser hides the status and it reads unreachable.
+- No backend fills `bssid`, `strength`, `frequency_mhz`, `link_speed_mbps`, `cellular_generation` or `carrier` yet: the `PlatformSnapshot` seam does not carry them.
