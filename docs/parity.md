@@ -8,7 +8,7 @@ Status words:
 - **Omitted**: no counterpart, with the reason. An omitted configuration field is not in `Configuration`; a plain-JS caller that passes one changes nothing.
 - **Ours**: no reference API; the row names what this library adds.
 
-What is implemented and which gates ran is in the README's Status section. A "Mapped" row means the API exists; which fields each platform actually fills is in [decisions.md](decisions.md) ("What each backend can and cannot answer"): `bssid`, `strength`, `frequency`, `linkSpeed`, `cellularGeneration` and `carrier` are `None`/`null` on every backend today, and Android has no change events. The testable contract, with a named test for each edge case, is [goals.md](goals.md).
+What is implemented and which CI run verified it is in the README's Status section (all eight CI jobs green on `master`; the tests drive the fakes, so a "Mapped" row is verified through the public API on fakes and, per host, the live Apple and Linux snapshot tests, never on a device). A "Mapped" row means the API exists; which fields each platform actually fills is in [decisions.md](decisions.md) ("What each backend can and cannot answer"): `bssid`, `strength`, `frequency`, `linkSpeed`, `cellularGeneration` and `carrier` are `None`/`null` on every backend today, and Android has no change events. The testable contract, with a named test for each edge case, is [goals.md](goals.md).
 
 ## `Connectivity` (connectivity_plus)
 
@@ -125,3 +125,15 @@ The same names modulo case, with one exception: a Rust `Duration` field is a mil
 | `ErrorKind` | the `code` strings |
 
 Values, Rust variant to TS string: `ConnectionType` — `Unknown` -> `"unknown"`, `None` -> `"none"`, `Cellular` -> `"cellular"`, `Wifi` -> `"wifi"`, `Bluetooth` -> `"bluetooth"`, `Ethernet` -> `"ethernet"`, `WiMax` -> `"wimax"`, `Vpn` -> `"vpn"`, `Satellite` -> `"satellite"`, `Other` -> `"other"`. `Reachability` — `"unknown"`, `"reachable"`, `"unreachable"`. `CellularGeneration` — `Generation2` -> `"2g"` through `Generation5` -> `"5g"`. `ProbeOutcome` — `"reachable"`, `"captivePortal"`, `"unreachable"`.
+
+## Blocked and not implemented
+
+| Item | Why |
+|---|---|
+| Change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`) | Needs a `ConnectivityManager.NetworkCallback` subclass, which is Java code a crate cannot ship through NSH 0.6.0 |
+| Any Android snapshot in an app | NSH 0.6.0 declares only `INTERNET` (`crates/nsh-cli/src/android.rs`), not `ACCESS_NETWORK_STATE`, so the query answers `ERR_CONNECTIVITY_PERMISSION_DENIED` until NSH declares it |
+| SSID on Android | Also needs `ACCESS_FINE_LOCATION`, which NSH 0.6.0 cannot declare; reads `None` |
+| SSID on Apple, Linux, Windows | Apple's path API carries none; Linux needs NetworkManager over D-Bus; Windows not read |
+| `bssid`, `strength`, `frequency_mhz`, `link_speed_mbps`, `cellular_generation`, `carrier` | `PlatformSnapshot` as specified in goals.md does not carry them; `None`/`null` everywhere |
+| Satellite on Apple | Needs `nw_path_is_ultra_constrained` (macOS/iOS 26); not read |
+| Running on real devices, a browser, or the live Internet | No device or account is available here; CI runs hosted runners only, and the web and Android bridges are compile-and-lint checked only |
