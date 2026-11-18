@@ -10,7 +10,7 @@ The API follows Flutter's `connectivity_plus` and React Native's `NetInfo`, so a
 
 **Implemented and verified by CI on `master`; not run on devices.** The crate `crates/nsh-connectivity` carries the core API — check, fetch, refresh, state, configure, subscribe, the change stream, stop, the debounce loop, the HTTP 204 probe — with backends for Apple (NWPathMonitor), Android (ConnectivityManager over JNI), Windows (NetworkInformation), Linux (netdev and if-watch), the web (navigator.onLine plus fetch), and an unsupported-target fallback. The package `packages/nsh-connectivity` carries the same API in camelCase over a thin native seam, with `useNetInfo` and a memory backend, scripted probe and manual clock for tests.
 
-Verified by [CI run 44376306446](https://github.com/SuperNSH/connectivity/actions/runs/44376306446) on `master` (commit `fe88dc4`, NSH 0.6.0), all eight jobs green:
+Verified by [CI run 44381667703](https://github.com/SuperNSH/connectivity/actions/runs/44381667703) on `master` (commit `42b0d6c`, NSH 0.6.0; the code is unchanged since `fe88dc4`, whose run 44376306446 was green too), all eight jobs green:
 
 - `format`: `cargo fmt --all -- --check`.
 - `rust (ubuntu-latest)`, `rust (macos-latest)`, `rust (windows-latest)`: `cargo clippy --all-targets -- -D warnings` and `cargo test --all-targets`. Unit tests: 22 on Ubuntu (including the Linux backend's netlink tests), 14 on macOS (including a live NWPathMonitor snapshot and watch), 12 on Windows; plus the 28 tests in `tests/edge_cases.rs` on each host (the 26 named cases of [docs/goals.md](docs/goals.md), a stalled-server probe test and an in-flight configure test).
