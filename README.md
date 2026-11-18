@@ -15,10 +15,10 @@ What ran on 2026-11-17, before any CI run of this change:
 - macOS host: `cargo fmt --all -- --check`, `cargo clippy --all-targets -- -D warnings`, `cargo test --all-targets` (14 unit tests, including a live NWPathMonitor snapshot and watch, and the 28 tests in `tests/edge_cases.rs`).
 - Cross clippy with `-D warnings` from macOS: `aarch64-apple-ios`, `aarch64-apple-ios-sim`, `aarch64-linux-android` (NDK 28.2), `wasm32-unknown-unknown`.
 - Ubuntu 24.04 (a cloud box, with the same sources): `cargo clippy --all-targets -- -D warnings` and `cargo test --all-targets` (22 unit tests including the Linux backend's live netlink tests, plus the 28 edge cases); `cargo clippy --target x86_64-pc-windows-gnu --all-targets -- -D warnings` (Windows compiled and linted only, never run).
-- `packages/nsh-connectivity` with NSH 0.5.1: `nsh check`, `nsh build` (no warning), `nsh test` (32 tests, including one that opens the app on the real Apple backend).
+- `packages/nsh-connectivity` with NSH 0.6.0: `nsh check`, `nsh build` (no warning), `nsh test` (32 tests, including one that opens the app on the real Apple backend).
 - Every new test was seen to fail by breaking the code on purpose, then passed again once it was restored.
 
-Not verified: no device or simulator ran this code, the Windows and Android backends never executed, the web backend never ran in a browser, and no probe hit the live Internet. Not implemented: change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`), the SSID on Apple, Linux and Android, satellite on Apple, and the detail fields no backend reads (`bssid`, `strength`, frequency, link speed, cellular generation, carrier). On Android, NSH 0.5.1 does not declare `ACCESS_NETWORK_STATE`, so snapshots there answer `ERR_CONNECTIVITY_PERMISSION_DENIED` until it does. [docs/decisions.md](docs/decisions.md) has the reasons.
+Not verified: no device or simulator ran this code, the Windows and Android backends never executed, the web backend never ran in a browser, and no probe hit the live Internet. Not implemented: change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`), the SSID on Apple, Linux and Android, satellite on Apple, and the detail fields no backend reads (`bssid`, `strength`, frequency, link speed, cellular generation, carrier). On Android, NSH 0.6.0 does not declare `ACCESS_NETWORK_STATE`, so snapshots there answer `ERR_CONNECTIVITY_PERMISSION_DENIED` until it does. [docs/decisions.md](docs/decisions.md) has the reasons.
 
 ## Approach
 
