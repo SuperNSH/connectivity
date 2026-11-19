@@ -3,8 +3,9 @@
 //!
 //! The queries need `ACCESS_NETWORK_STATE`, which NSH 0.6.0's generated manifest does not
 //! declare; without it Android throws `SecurityException`, reported as `PermissionDenied`.
-//! Change events need a `NetworkCallback` subclass, which is Java code NSH cannot ship from a
-//! crate, so `watch` answers `NotAvailable` and snapshots still work.
+//! Change events need a `NetworkCallback` subclass, which is Java code (a crate can embed a dex
+//! and load it, as nsh-secure-storage does) and `registerDefaultNetworkCallback` needs the same
+//! `ACCESS_NETWORK_STATE`, so `watch` answers `NotAvailable` until NSH declares it.
 
 use std::{
     ffi::{c_char, c_int, c_void},

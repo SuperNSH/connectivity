@@ -53,7 +53,7 @@ The debounce loop is spawned on the current tokio runtime: NSH polls its tasks i
 ### What each backend can and cannot answer
 
 - Apple: `NWPathMonitor`, twelve C functions declared by hand. A path carries no SSID or addresses, so those are `None`. A VPN is recognised by its tunnel's name (`utun*`, `ipsec*`, `ppp*`, `tun*`, `tap*`), because Network reports it as `other`. Satellite needs `nw_path_is_ultra_constrained` (macOS/iOS 26) and is not read.
-- Android: snapshot only. Change events need a `ConnectivityManager.NetworkCallback` subclass, which is Java code a crate cannot ship through NSH 0.6.0, so `watch` answers `NotAvailable`. No polling fallback was added.
+- Android: snapshot only. Change events need a `ConnectivityManager.NetworkCallback` subclass, which is Java code. A crate can ship that: `nsh-secure-storage` embeds a dex and loads it through `InMemoryDexClassLoader`, and NSH 0.6.0 has no mechanism that stops it. What does stop it is the manifest: `registerDefaultNetworkCallback` needs `ACCESS_NETWORK_STATE`, which NSH 0.6.0 does not declare (`crates/nsh-cli/src/android.rs` writes `INTERNET`, `POST_NOTIFICATIONS`, `RECORD_AUDIO` and `CAMERA` only), so the dex would fail on the same `SecurityException` as the snapshot. `watch` answers `NotAvailable`. No polling fallback was added, since the poll would hit the same permission.
 - Windows: connection profiles and `NetworkStatusChanged`. IP address and subnet are not read.
 - Linux: netdev and if-watch as planned; no SSID (that needs NetworkManager over D-Bus).
 - Web: `navigator.onLine` reports `wifi` when online; the probe needs a CORS-enabled URL, or the browser hides the status and it reads unreachable.
