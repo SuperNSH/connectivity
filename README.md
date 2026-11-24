@@ -6,6 +6,18 @@ Part of the Native Shell (NSH) capability set. Same layout as the other SuperNSH
 
 The API follows Flutter's `connectivity_plus` and React Native's `NetInfo`, so an app that knows either knows this one. [docs/parity.md](docs/parity.md) lists every reference API and what it does here; [docs/decisions.md](docs/decisions.md) says why each choice was made.
 
+## Install
+
+In the app's directory:
+
+```sh
+nsh add nsh-connectivity
+```
+
+`nsh add` needs NSH main or the nightly: the 0.6.0 and 0.6.1 releases do not have it. In a Rust app, `cargo add nsh-connectivity` works with any of them.
+
+TSX imports `nsh-connectivity`, with `nsh-connectivity/rust` and `nsh-connectivity/memory` alongside it.
+
 ## Status
 
 **Implemented and verified by CI on `master`; not run on devices.** The crate `crates/nsh-connectivity` carries the core API — check, fetch, refresh, state, configure, subscribe, the change stream, stop, the debounce loop, the HTTP 204 probe — with backends for Apple (NWPathMonitor), Android (ConnectivityManager over JNI), Windows (NetworkInformation), Linux (netdev and if-watch), the web (navigator.onLine plus fetch), and an unsupported-target fallback. The package `packages/nsh-connectivity` carries the same API in camelCase over a thin native seam, with `useNetInfo` and a memory backend, scripted probe and manual clock for tests.

@@ -5,7 +5,8 @@ edition.workspace = true
 license.workspace = true
 description = "Network status, change events, and real internet reachability."
 repository.workspace = true
-publish = false
+readme = "../../README.md"
+keywords = ["nshm", "nsh", "connectivity", "network", "reachability"]
 
 [lib]
 name = "nsh_connectivity"
