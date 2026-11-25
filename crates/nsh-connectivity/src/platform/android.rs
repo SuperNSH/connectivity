@@ -1,11 +1,10 @@
 //! Android: `ConnectivityManager` over JNI (jni 0.21), with the VM and the application from
 //! `ndk-context`, installed once through libnativehelper when the host left it empty.
 //!
-//! The queries need `ACCESS_NETWORK_STATE`, which NSH 0.6.0's generated manifest does not
-//! declare; without it Android throws `SecurityException`, reported as `PermissionDenied`.
+//! The queries need `ACCESS_NETWORK_STATE`, which NSH 0.7.1's generated manifest declares (0.6.0
+//! did not); without it Android throws `SecurityException`, reported as `PermissionDenied`.
 //! Change events need a `NetworkCallback` subclass, which is Java code (a crate can embed a dex
-//! and load it, as nsh-secure-storage does) and `registerDefaultNetworkCallback` needs the same
-//! `ACCESS_NETWORK_STATE`, so `watch` answers `NotAvailable` until NSH declares it.
+//! and load it, as nsh-secure-storage does), so `watch` answers `NotAvailable` until one ships.
 
 use std::{
     ffi::{c_char, c_int, c_void},

@@ -130,9 +130,8 @@ Values, Rust variant to TS string: `ConnectionType` — `Unknown` -> `"unknown"`
 
 | Item | Why |
 |---|---|
-| Change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`) | Needs a `ConnectivityManager.NetworkCallback` subclass, which is Java a crate can embed as a dex (as `nsh-secure-storage` does); the registration needs `ACCESS_NETWORK_STATE`, which NSH 0.6.0 does not declare, so it is blocked on the same upstream gap as the Android snapshot |
-| Any Android snapshot in an app | NSH 0.6.0 declares only `INTERNET` (`crates/nsh-cli/src/android.rs`), not `ACCESS_NETWORK_STATE`, so the query answers `ERR_CONNECTIVITY_PERMISSION_DENIED` until NSH declares it |
-| SSID on Android | Also needs `ACCESS_FINE_LOCATION`, which NSH 0.6.0 cannot declare; reads `None` |
+| Change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`) | Needs a `ConnectivityManager.NetworkCallback` subclass, which is Java a crate can embed as a dex (as `nsh-secure-storage` does); none is written yet. The `ACCESS_NETWORK_STATE` it registers under is declared by NSH 0.7.1 |
+| SSID on Android | Needs `ACCESS_FINE_LOCATION`, which an app declares under `android.permissions` in `nsh.json` (NSH 0.7.1); the crate does not read it, so it reads `None` |
 | SSID on Apple, Linux, Windows | Apple's path API carries none; Linux needs NetworkManager over D-Bus; Windows not read |
 | `bssid`, `strength`, `frequency_mhz`, `link_speed_mbps`, `cellular_generation`, `carrier` | `PlatformSnapshot` as specified in goals.md does not carry them; `None`/`null` everywhere |
 | Satellite on Apple | Needs `nw_path_is_ultra_constrained` (macOS/iOS 26); not read |

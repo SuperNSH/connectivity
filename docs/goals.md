@@ -22,7 +22,7 @@ Done is what the gates say, nothing else:
 3. `cargo test --all-targets` — passes, including every Rust test named in [Edge cases](#edge-cases).
 4. In `packages/nsh-connectivity`: `nsh check` passes and `nsh build` passes with no warning.
 5. In `packages/nsh-connectivity`: `nsh test` passes, including every TS test named in [Edge cases](#edge-cases).
-6. `.github/workflows/ci.yml` runs both toolchains on push: the format job; clippy and tests on ubuntu, macos, and windows (each host compiles its own bridge); cross-check clippy for `aarch64-apple-ios`, `aarch64-linux-android`, and `wasm32-unknown-unknown`; the TypeScript job (NSH 0.6.0's `nsh check`, `nsh build`, `nsh test`).
+6. `.github/workflows/ci.yml` runs both toolchains on push: the format job; clippy and tests on ubuntu, macos, and windows (each host compiles its own bridge); cross-check clippy for `aarch64-apple-ios`, `aarch64-linux-android`, and `wasm32-unknown-unknown`; the TypeScript job (NSH 0.7.1's `nsh check`, `nsh build`, `nsh test`).
 
 Every edge case below names its test in both languages, and the suites use those exact names. A case that turns out to be inexpressible in one language's integration suite is recorded here with the reason before the suite lands; there is currently no such case.
 

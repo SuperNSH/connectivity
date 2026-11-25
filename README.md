@@ -14,7 +14,7 @@ In the app's directory:
 nsh add nsh-connectivity
 ```
 
-`nsh add` needs NSH main or the nightly: the 0.6.0 and 0.6.1 releases do not have it. In a Rust app, `cargo add nsh-connectivity` works with any of them.
+`nsh add` needs NSH 0.7.0 or later: the 0.6.x releases do not have it. In a Rust app, `cargo add nsh-connectivity` works with any of them.
 
 TSX imports `nsh-connectivity`, with `nsh-connectivity/rust` and `nsh-connectivity/memory` alongside it.
 
@@ -31,7 +31,7 @@ Verified by [CI run 44381667703](https://github.com/SuperNSH/connectivity/action
 
 Every new test was seen to fail by breaking the code on purpose before it counted (done on a developer machine before the AGENTS.md no-local-builds rule applied to this change).
 
-Not verified: no device or simulator ran this code, the Windows and Android backends never executed, the web backend never ran in a browser, and no probe hit the live Internet. Not implemented: change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`), the SSID on Apple, Linux and Android, satellite on Apple, and the detail fields no backend reads (`bssid`, `strength`, frequency, link speed, cellular generation, carrier). On Android, NSH 0.6.0 does not declare `ACCESS_NETWORK_STATE`, so snapshots there answer `ERR_CONNECTIVITY_PERMISSION_DENIED` until it does. [docs/decisions.md](docs/decisions.md) has the reasons.
+Not verified: no device or simulator ran this code, the Windows and Android backends never executed, the web backend never ran in a browser, and no probe hit the live Internet. Not implemented: change events on Android (`watch` answers `ERR_CONNECTIVITY_NOT_AVAILABLE`), the SSID on Apple, Linux and Android, satellite on Apple, and the detail fields no backend reads (`bssid`, `strength`, frequency, link speed, cellular generation, carrier). NSH 0.7.1 declares `ACCESS_NETWORK_STATE` on Android; on NSH 0.6.x snapshots there answer `ERR_CONNECTIVITY_PERMISSION_DENIED`. [docs/decisions.md](docs/decisions.md) has the reasons.
 
 ## Approach
 
